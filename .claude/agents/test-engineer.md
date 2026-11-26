@@ -2,6 +2,7 @@
 name: test-engineer
 description: Writes and updates Vitest unit tests for the Taskly backend (Express/Prisma) and frontend (React). Use for "add missing tests", "improve coverage", or "create/update tests for the changes in this PR". Never changes production code.
 tools: Read, Glob, Grep, Edit, Write, Bash
+model: sonnet
 skills:
   - analyze-pr-changes
   - backend-unit-tests

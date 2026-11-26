@@ -127,6 +127,7 @@ jobs:
           prompt: ${{ steps.prompt.outputs.text }}
           claude_args: >-
             --agent test-engineer
+            --model ${{ env.MODE == 'pr' && 'haiku' || 'sonnet' }}
             --max-turns ${{ env.MODE == 'pr' && '60' || '150' }}
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm --prefix backend test*),Bash(npm --prefix frontend test*),Bash(npm --prefix backend run typecheck),Bash(npm --prefix frontend run typecheck),Bash(npm --prefix backend run test:coverage),Bash(npm --prefix frontend run test:coverage),Bash(node .claude/skills/analyze-pr-changes/scripts/changed-files.mjs*),Bash(node .claude/skills/run-tests-and-coverage/scripts/coverage-report.mjs*),Bash(git diff*),Bash(git status*),Bash(git log*)"
             --disallowedTools "WebFetch,WebSearch"

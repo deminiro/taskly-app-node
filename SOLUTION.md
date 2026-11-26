@@ -28,6 +28,7 @@ The skills are plain `SKILL.md` folders, so they're reusable. The same agent wor
 6. **The agent decides.** A cheap deterministic pre-filter (the `analyze-pr-changes` script) skips the model entirely when no testable source changed: docs, config, types, styles, stories or tests only. The comment then says "skipped" with the reason. Otherwise the agent decides per file whether tests are warranted and explains why in the comment.
 7. **Correct over green.** The agent may not weaken existing assertions or touch source. A test that exposes a real bug is kept as `it.todo` and listed under *Possible bugs found*. A test it can't fix in 3 iterations is dropped and listed.
 8. **Reliability.** Per-PR concurrency with cancel-in-progress. The commit is skipped if the branch moved after the agent ran (the newer push gets its own run). Actions are pinned to commit SHAs. Artifacts are kept 14 days so a rejected or failed patch can be inspected.
+9. **Model per mode, to control spend.** PR mode runs on every PR with small diffs, so it uses **Haiku** (`--model haiku` in the workflow). Coverage mode is rare and large, so it uses **Sonnet**, which is also the agent's declared default (`model: sonnet`) for local runs. Most tokens go to writing and fixing tests, so the cheaper model is put where runs are most frequent. A weaker model can't lower the bar: `verify` still re-runs everything, and nothing unverified is committed.
 
 ## How to run it
 
@@ -89,7 +90,7 @@ On that push the agent decided `tests_updated`. It skipped files already tested 
 - **Fork PRs are skipped.** `pull_request` from forks has no secrets, and using `pull_request_target` would mean running untrusted code next to secrets.
 - **The bot commit doesn't trigger CI again.** Pushes made with `GITHUB_TOKEN` don't start workflows. The `verify` job already ran the full typecheck and coverage on exactly that tree, but required-status rules see the previous commit.
 - Bot-pushed commits can create an approval-gated `pull_request` run on some repos; the workflow skips runs whose actor is `github-actions[bot]`, so approving one is harmless.
-- LLM output is not deterministic. Two runs can produce different (both valid) tests, and quality depends on turn limits and the model.
+- LLM output is not deterministic. Two runs can produce different (both valid) tests, and quality depends on turn limits and the model. Haiku in PR mode can write shallower tests, or give up more often on hard cases (they show up as dropped tests in the comment). The example runs above were made before the model was pinned, on the account default model.
 - Each run costs model tokens. Large PRs may hit the turn cap, and the report then shows partial work.
 - Coverage numbers measure lines executed, not whether the assertions are any good.
 - The allowlist checks *where* the agent writes, not *what* the tests do. Test code runs only in the secret-less, read-only `verify` job.
