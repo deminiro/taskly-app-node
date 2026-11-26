@@ -46,3 +46,36 @@ it('creates a new task and reports a successful save', async () => {
   expect(create).toHaveBeenCalledWith(todoFixture)
   expect(update).not.toHaveBeenCalled()
 })
+
+function mockMutations(create: object, update: object) {
+  vi.mocked(useCreateTodoMutation).mockReturnValue({ isPending: false, error: null, mutateAsync: vi.fn(), ...create } as unknown as ReturnType<typeof useCreateTodoMutation>)
+  vi.mocked(useUpdateTodoMutation).mockReturnValue({ isPending: false, error: null, mutateAsync: vi.fn(), ...update } as unknown as ReturnType<typeof useUpdateTodoMutation>)
+}
+it('updates an existing task', async () => {
+  const create = vi.fn()
+  const mutateAsync = vi.fn().mockResolvedValue(todoFixture)
+  mockMutations({ mutateAsync: create }, { mutateAsync })
+  const onSaved = vi.fn()
+  render(<TodoEditor todo={todoFixture} busy={false} onClose={vi.fn()} onSaved={onSaved} />)
+  expect(screen.getByRole('dialog', { name: 'Edit task' })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Submit form' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Changes saved.'))
+  expect(mutateAsync).toHaveBeenCalledWith({ id: todoFixture.id, input: todoFixture })
+  expect(create).not.toHaveBeenCalled()
+})
+it('does not report success when saving fails', async () => {
+  const mutateAsync = vi.fn().mockRejectedValue(new Error('x'))
+  mockMutations({ mutateAsync }, {})
+  const onSaved = vi.fn()
+  render(<TodoEditor todo="new" busy={false} onClose={vi.fn()} onSaved={onSaved} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Submit form' }))
+  await waitFor(() => expect(mutateAsync).toHaveBeenCalled())
+  expect(onSaved).not.toHaveBeenCalled()
+})
+it('ignores submits while busy', async () => {
+  const mutateAsync = vi.fn()
+  mockMutations({ mutateAsync }, {})
+  render(<TodoEditor todo="new" busy onClose={vi.fn()} onSaved={vi.fn()} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Submit form' }))
+  expect(mutateAsync).not.toHaveBeenCalled()
+})
