@@ -1,4 +1,4 @@
-// Run: node --test .github/scripts
+// Run: node --test .github/scripts/scripts.test.mjs
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
