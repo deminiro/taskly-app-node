@@ -27,3 +27,11 @@ it('sends only writable task fields on creation', async () => {
     }),
   })
 })
+
+it('clears completed tasks with a guarded bulk delete', async () => {
+  vi.mocked(request).mockResolvedValue({ deleted: 2 })
+  await expect(todosApi.clearCompleted()).resolves.toEqual({ deleted: 2 })
+  expect(request).toHaveBeenCalledWith('/todos?completed=true', {
+    method: 'DELETE',
+  })
+})

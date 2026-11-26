@@ -5,7 +5,7 @@ import { createTodosRouter } from '../src/features/todos/router.ts';
 import { todo } from './fixture.ts';
 
 function setup() {
-  const repository = { list: vi.fn().mockResolvedValue([todo]), create: vi.fn().mockResolvedValue(todo), get: vi.fn(), update: vi.fn(), delete: vi.fn() };
+  const repository = { list: vi.fn().mockResolvedValue([todo]), create: vi.fn().mockResolvedValue(todo), get: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteCompleted: vi.fn().mockResolvedValue(0) };
   const app = express();
   app.use(express.json());
   app.use('/api/todos', createTodosRouter(repository));
@@ -32,3 +32,18 @@ it.each([{ title: '  ' }, { title: 'x'.repeat(121) }, { title: 'Task', priority:
     expect(repository.create).not.toHaveBeenCalled();
   },
 );
+it('clears completed tasks only when ?completed=true is given', async () => {
+  const { app, repository } = setup();
+  repository.deleteCompleted.mockResolvedValue(3);
+  const response = await request(app).delete('/api/todos?completed=true');
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ deleted: 3 });
+  expect(repository.deleteCompleted).toHaveBeenCalledOnce();
+});
+it.each(['/api/todos', '/api/todos?completed=false', '/api/todos?completed=1'])('refuses bulk delete without explicit opt-in: %s', async (url) => {
+  const { app, repository } = setup();
+  const response = await request(app).delete(url);
+  expect(response.status).toBe(422);
+  expect(response.body.detail).toContain('?completed=true');
+  expect(repository.deleteCompleted).not.toHaveBeenCalled();
+});

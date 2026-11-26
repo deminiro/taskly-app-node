@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
+import { todoFixture } from '../../test/todoFixture'
 import { useNotice } from '../../hooks/useNotice'
+import { useClearCompletedMutation } from './hooks/useClearCompletedMutation'
 import { useTodoFilters } from './hooks/useTodoFilters'
 import { useTodosBusy } from './hooks/useTodosBusy'
 import { useTodosQuery } from './hooks/useTodosQuery'
@@ -10,6 +12,9 @@ import { TodosPage } from './TodosPage'
 
 vi.mock('../../design-system', () => import('../../design-system/mocks'))
 vi.mock('../../hooks/useNotice', () => ({ useNotice: vi.fn() }))
+vi.mock('./hooks/useClearCompletedMutation', () => ({
+  useClearCompletedMutation: vi.fn(),
+}))
 vi.mock('./hooks/useTodoFilters', () => ({ useTodoFilters: vi.fn() }))
 vi.mock('./hooks/useTodosBusy', () => ({ useTodosBusy: vi.fn() }))
 vi.mock('./hooks/useTodosQuery', () => ({ useTodosQuery: vi.fn() }))
@@ -17,7 +22,18 @@ vi.mock('./hooks/useUpdateTodoMutation', () => ({
   useUpdateTodoMutation: vi.fn(),
 }))
 vi.mock('./components/TodosHeader', () => ({
-  TodosHeader: () => <h1>Tasks</h1>,
+  TodosHeader: ({
+    completedCount,
+    onClearCompleted,
+  }: {
+    completedCount: number
+    onClearCompleted: () => void
+  }) => (
+    <div>
+      <h1>Tasks</h1>
+      <button onClick={onClearCompleted}>Clear ({completedCount})</button>
+    </div>
+  ),
 }))
 vi.mock('./components/TodoFilters', () => ({ TodoFilters: () => null }))
 vi.mock('./components/TodoList', () => ({ TodoList: () => <p>Task list</p> }))
@@ -26,6 +42,79 @@ vi.mock('./components/DeleteTodoDialog', () => ({
   DeleteTodoDialog: () => null,
 }))
 vi.mock('../../components/SuccessNotice', () => ({ SuccessNotice: () => null }))
+
+function mockClear(overrides = {}) {
+  const clear = { error: null, reset: vi.fn(), mutateAsync: vi.fn(), ...overrides }
+  vi.mocked(useClearCompletedMutation).mockReturnValue(
+    clear as unknown as ReturnType<typeof useClearCompletedMutation>,
+  )
+  return clear
+}
+
+function mockPage(todos: unknown[], busy = false) {
+  const notify = vi.fn()
+  vi.mocked(useTodosQuery).mockReturnValue({
+    data: todos,
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useTodosQuery>)
+  vi.mocked(useUpdateTodoMutation).mockReturnValue({
+    error: null,
+    reset: vi.fn(),
+    mutateAsync: vi.fn(),
+  } as unknown as ReturnType<typeof useUpdateTodoMutation>)
+  vi.mocked(useTodosBusy).mockReturnValue(busy)
+  vi.mocked(useNotice).mockReturnValue({ message: '', notify })
+  vi.mocked(useTodoFilters).mockReturnValue({
+    filter: 'all',
+    search: '',
+    sort: 'newest',
+    visible: [],
+    setFilter: vi.fn(),
+    setSearch: vi.fn(),
+    setSort: vi.fn(),
+  })
+  return notify
+}
+
+it.each([
+  [1, '1 completed task cleared.'],
+  [3, '3 completed tasks cleared.'],
+])('clears completed tasks (%i) and announces the result', async (deleted, text) => {
+  const user = userEvent.setup()
+  const clear = mockClear({ mutateAsync: vi.fn().mockResolvedValue({ deleted }) })
+  const notify = mockPage([
+    { ...todoFixture, id: 1, completed: true },
+    { ...todoFixture, id: 2 },
+  ])
+  render(<TodosPage />)
+  await user.click(screen.getByRole('button', { name: 'Clear (1)' }))
+  await waitFor(() => expect(notify).toHaveBeenCalledWith(text))
+  expect(clear.mutateAsync).toHaveBeenCalledTimes(1)
+})
+
+it('does not clear while busy', async () => {
+  const user = userEvent.setup()
+  const clear = mockClear()
+  mockPage([{ ...todoFixture, completed: true }], true)
+  render(<TodosPage />)
+  await user.click(screen.getByRole('button', { name: 'Clear (1)' }))
+  expect(clear.mutateAsync).not.toHaveBeenCalled()
+})
+
+it('shows the clear error in the alert without notifying', async () => {
+  const user = userEvent.setup()
+  const error = new Error('Clear failed.')
+  mockClear({ error, mutateAsync: vi.fn().mockRejectedValue(error) })
+  const notify = mockPage([])
+  render(<TodosPage />)
+  await user.click(screen.getByRole('button', { name: 'Clear (0)' }))
+  expect(screen.getByTestId('alert')).toHaveTextContent('Clear failed.')
+  expect(notify).not.toHaveBeenCalled()
+})
 
 it('displays a query failure and resets mutation errors before retrying', async () => {
   const user = userEvent.setup()
@@ -44,6 +133,8 @@ it('displays a query failure and resets mutation errors before retrying', async 
     reset,
     mutateAsync: vi.fn(),
   } as unknown as ReturnType<typeof useUpdateTodoMutation>)
+  const clearReset = vi.fn()
+  mockClear({ reset: clearReset })
   vi.mocked(useTodosBusy).mockReturnValue(false)
   vi.mocked(useNotice).mockReturnValue({ message: '', notify: vi.fn() })
   vi.mocked(useTodoFilters).mockReturnValue({
@@ -62,6 +153,7 @@ it('displays a query failure and resets mutation errors before retrying', async 
   await user.click(screen.getByRole('button', { name: 'Try again' }))
   await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
   expect(reset).toHaveBeenCalledTimes(1)
+  expect(clearReset).toHaveBeenCalledTimes(1)
   expect(reset.mock.invocationCallOrder[0]).toBeLessThan(
     refetch.mock.invocationCallOrder[0],
   )

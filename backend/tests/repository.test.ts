@@ -81,3 +81,10 @@ it('propagates database errors', async () => {
   vi.spyOn(database.todo, 'findMany').mockRejectedValue(new Error('Database unavailable'));
   await expect(repository.list()).rejects.toThrow('Database unavailable');
 });
+
+it('deletes completed tasks and returns how many were removed', async () => {
+  const { database, repository } = setup();
+  const remove = vi.spyOn(database.todo, 'deleteMany').mockResolvedValue({ count: 4 });
+  expect(await repository.deleteCompleted()).toBe(4);
+  expect(remove).toHaveBeenCalledWith({ where: { completed: true } });
+});
