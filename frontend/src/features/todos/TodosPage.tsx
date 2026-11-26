@@ -13,6 +13,7 @@ import { useTodosBusy } from './hooks/useTodosBusy'
 import { useTodosQuery } from './hooks/useTodosQuery'
 import { useUpdateTodoMutation } from './hooks/useUpdateTodoMutation'
 import type { Todo } from './types'
+import { pluralize } from './utils/todos'
 
 export function TodosPage() {
   const todosQuery = useTodosQuery()
@@ -47,11 +48,7 @@ export function TodosPage() {
     if (busy) return
     try {
       const { deleted } = await clearCompleted.mutateAsync()
-      notify(
-        deleted === 1
-          ? '1 completed task cleared.'
-          : `${deleted} completed tasks cleared.`,
-      )
+      notify(`${pluralize(deleted, 'completed task')} cleared.`)
     } catch {
       // Display the mutation error in the page alert.
     }
