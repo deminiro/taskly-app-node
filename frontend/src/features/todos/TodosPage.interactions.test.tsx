@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { todoFixture } from '../../test/todoFixture'
 import { useNotice } from '../../hooks/useNotice'
+import { useClearCompletedMutation } from './hooks/useClearCompletedMutation'
 import { useTodoFilters } from './hooks/useTodoFilters'
 import { useTodosBusy } from './hooks/useTodosBusy'
 import { useTodosQuery } from './hooks/useTodosQuery'
@@ -11,6 +12,7 @@ import { TodosPage } from './TodosPage'
 
 vi.mock('../../design-system', () => import('../../design-system/mocks'))
 vi.mock('../../hooks/useNotice', () => ({ useNotice: vi.fn() }))
+vi.mock('./hooks/useClearCompletedMutation', () => ({ useClearCompletedMutation: vi.fn() }))
 vi.mock('./hooks/useTodoFilters', () => ({ useTodoFilters: vi.fn() }))
 vi.mock('./hooks/useTodosBusy', () => ({ useTodosBusy: vi.fn() }))
 vi.mock('./hooks/useTodosQuery', () => ({ useTodosQuery: vi.fn() }))
@@ -56,6 +58,9 @@ function setup({ busy = false, mutationError = null as Error | null } = {}) {
   vi.mocked(useTodosQuery).mockReturnValue({
     data: [todoFixture], isPending: false, isFetching: false, isError: false, error: null, refetch: vi.fn(),
   } as unknown as ReturnType<typeof useTodosQuery>)
+  vi.mocked(useClearCompletedMutation).mockReturnValue({
+    error: null, reset: vi.fn(), mutateAsync: vi.fn(),
+  } as unknown as ReturnType<typeof useClearCompletedMutation>)
   vi.mocked(useUpdateTodoMutation).mockReturnValue({
     error: mutationError, reset: vi.fn(), mutateAsync,
   } as unknown as ReturnType<typeof useUpdateTodoMutation>)

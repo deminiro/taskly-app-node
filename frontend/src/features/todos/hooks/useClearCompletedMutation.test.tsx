@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { todoFixture } from '../../../test/todoFixture'
@@ -43,7 +43,7 @@ it('leaves the cache untouched and exposes the error on failure', async () => {
     await result.current.mutateAsync().catch(() => undefined)
   })
   expect(client.getQueryData(todoKeys.list)).toEqual([done])
-  expect(result.current.error).toEqual(new Error('boom'))
+  await waitFor(() => expect(result.current.error).toEqual(new Error('boom')))
 })
 
 it('does not create a cache entry when the list was never loaded', async () => {
