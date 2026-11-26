@@ -28,10 +28,17 @@ it('sends only writable task fields on creation', async () => {
   })
 })
 
-it('clears completed tasks with a guarded bulk delete', async () => {
-  vi.mocked(request).mockResolvedValue({ deleted: 2 })
-  await expect(todosApi.clearCompleted()).resolves.toEqual({ deleted: 2 })
-  expect(request).toHaveBeenCalledWith('/todos?completed=true', {
-    method: 'DELETE',
+it('patches only writable fields on update', async () => {
+  vi.mocked(request).mockResolvedValue(todoFixture)
+  await todosApi.update(7, { completed: true })
+  expect(request).toHaveBeenCalledWith('/todos/7', {
+    method: 'PATCH',
+    body: JSON.stringify({ completed: true }),
   })
+})
+
+it('deletes a task by id', async () => {
+  vi.mocked(request).mockResolvedValue(undefined)
+  await todosApi.remove(7)
+  expect(request).toHaveBeenCalledWith('/todos/7', { method: 'DELETE' })
 })

@@ -58,15 +58,18 @@ export function render(env) {
     status: read(join(resultDir, `status-${pkg}.txt`)),
     vitest: readJson(join(resultDir, `vitest-${pkg}.json`), null),
     before: coverageReport(pkg, [], join(agentDir, `baseline-${pkg}.json`)),
+    beforeStatus: read(join(agentDir, `baseline-status-${pkg}.txt`)),
     after: coverageReport(pkg, analysed.map((f) => f.path), join(resultDir, `coverage-${pkg}.json`)),
   })).filter((r) => r.status)
 
   if (runs.length) {
     const fmt = (c, k) => (c ? `${c.total[k]}%` : '–')
+    // Vitest writes no coverage when the suite fails, so a missing baseline usually means red before the agent.
+    const fmtBefore = (r, k) => (r.before ? fmt(r.before, k) : r.beforeStatus === 'failed' ? 'suite failing' : '–')
     out.push('### Verification (re-run by the workflow, not self-reported by the agent)', '',
       '| Package | Typecheck + tests | Passed | Failed | Lines before → after | Branches before → after |', '|---|---|---|---|---|---|')
     for (const r of runs) {
-      out.push(`| ${r.pkg} | ${r.status === 'passed' ? '✅ passed' : '❌ failed'} | ${r.vitest?.numPassedTests ?? '–'} | ${r.vitest?.numFailedTests ?? '–'} | ${fmt(r.before, 'lines')} → ${fmt(r.after, 'lines')} | ${fmt(r.before, 'branches')} → ${fmt(r.after, 'branches')} |`)
+      out.push(`| ${r.pkg} | ${r.status === 'passed' ? '✅ passed' : '❌ failed'} | ${r.vitest?.numPassedTests ?? '–'} | ${r.vitest?.numFailedTests ?? '–'} | ${fmtBefore(r, 'lines')} → ${fmt(r.after, 'lines')} | ${fmtBefore(r, 'branches')} → ${fmt(r.after, 'branches')} |`)
     }
     out.push('')
     const rows = runs.flatMap((r) => r.after?.files ?? [])

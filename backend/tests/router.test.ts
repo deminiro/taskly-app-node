@@ -5,7 +5,7 @@ import { createTodosRouter } from '../src/features/todos/router.ts';
 import { todo } from './fixture.ts';
 
 function setup() {
-  const repository = { list: vi.fn().mockResolvedValue([todo]), create: vi.fn().mockResolvedValue(todo), get: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteCompleted: vi.fn().mockResolvedValue(0) };
+  const repository = { list: vi.fn().mockResolvedValue([todo]), create: vi.fn().mockResolvedValue(todo), get: vi.fn(), update: vi.fn(), delete: vi.fn() };
   const app = express();
   app.use(express.json());
   app.use('/api/todos', createTodosRouter(repository));
@@ -32,18 +32,36 @@ it.each([{ title: '  ' }, { title: 'x'.repeat(121) }, { title: 'Task', priority:
     expect(repository.create).not.toHaveBeenCalled();
   },
 );
-it('clears completed tasks only when ?completed=true is given', async () => {
+
+it('gets a task by id and 404s when missing', async () => {
   const { app, repository } = setup();
-  repository.deleteCompleted.mockResolvedValue(3);
-  const response = await request(app).delete('/api/todos?completed=true');
-  expect(response.status).toBe(200);
-  expect(response.body).toEqual({ deleted: 3 });
-  expect(repository.deleteCompleted).toHaveBeenCalledOnce();
+  repository.get.mockResolvedValueOnce(todo).mockResolvedValueOnce(null);
+  const ok = await request(app).get('/api/todos/1');
+  expect(ok.status).toBe(200);
+  expect(ok.body).toEqual(todo);
+  expect(repository.get).toHaveBeenCalledWith(1);
+  const missing = await request(app).get('/api/todos/2');
+  expect(missing.status).toBe(404);
+  expect(missing.body).toEqual({ detail: 'Task not found.' });
 });
-it.each(['/api/todos', '/api/todos?completed=false', '/api/todos?completed=1'])('refuses bulk delete without explicit opt-in: %s', async (url) => {
+it.each(['abc', '0', '-1', '1.5'])('rejects invalid id %s', async (id) => {
   const { app, repository } = setup();
-  const response = await request(app).delete(url);
-  expect(response.status).toBe(422);
-  expect(response.body.detail).toContain('?completed=true');
-  expect(repository.deleteCompleted).not.toHaveBeenCalled();
+  expect((await request(app).get(`/api/todos/${id}`)).status).toBe(422);
+  expect(repository.get).not.toHaveBeenCalled();
+});
+it('patches a task, 404s when missing and 422s on invalid body', async () => {
+  const { app, repository } = setup();
+  repository.update.mockResolvedValueOnce(todo).mockResolvedValueOnce(null);
+  const ok = await request(app).patch('/api/todos/1').send({ completed: true });
+  expect(ok.status).toBe(200);
+  expect(repository.update).toHaveBeenCalledWith(1, { completed: true });
+  expect((await request(app).patch('/api/todos/1').send({ completed: true })).status).toBe(404);
+  expect((await request(app).patch('/api/todos/1').send({})).status).toBe(422);
+  expect(repository.update).toHaveBeenCalledTimes(2);
+});
+it('deletes a task with 204 or 404', async () => {
+  const { app, repository } = setup();
+  repository.delete.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+  expect((await request(app).delete('/api/todos/1')).status).toBe(204);
+  expect((await request(app).delete('/api/todos/1')).status).toBe(404);
 });

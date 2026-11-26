@@ -47,7 +47,31 @@ Usage:
 
 Before the agent, coverage was **backend 33.0% lines / 33.3% branches** and **frontend 47.7% lines / 43.8% branches**.
 
-<!-- EXAMPLE-RUNS -->
+### 1. Coverage mode → [PR #2](https://github.com/deminiro/taskly-app-node/pull/2) ([run](https://github.com/deminiro/taskly-app-node/actions/runs/45857380879))
+
+Started manually with *Run workflow* for `backend frontend`. The agent measured coverage, picked every untested or under-tested source file (`factory.ts`, `main.ts`, `health.ts`, `config.ts`, `database.ts`, `lifespan.ts`, `router.ts`, `http.ts`, the hooks, `TodosPage.tsx`, components and utils), and wrote or extended **20 test files**. The `verify` job (no secrets) accepted the patch against the allowlist and re-ran everything:
+
+| Package | Tests (verified) | Lines | Branches |
+|---|---|---|---|
+| backend | 76 passed, 0 failed | 33.0% → **100%** | 33.3% → **97.9%** |
+| frontend | 78 passed, 0 failed | 47.7% → **97.4%** | 43.8% → **98.5%** |
+
+`publish` committed the tests and pushed the branch `test-agent/coverage-45857380879`. Opening the PR failed because "Allow GitHub Actions to create … pull requests" was still off for the repo, so the PR was opened from that branch with the run's rendered results. The workflow now handles this case as a warning with a compare link.
+
+### 2. PR mode, feature without tests → [PR #1](https://github.com/deminiro/taskly-app-node/pull/1) ([run](https://github.com/deminiro/taskly-app-node/actions/runs/45857574713))
+
+The PR adds "Clear completed tasks": `DELETE /api/todos?completed=true`, `todosApi.clearCompleted`, `useClearCompletedMutation`, a header button and page wiring. It came without tests, and it broke two existing tests: the header test lacked the new props, and the router test's fake store lacked `deleteCompleted`.
+
+- **Analysis (`analyze-pr-changes`):** 8 changed source files. The agent marked `types.ts` (types only) and `queryKeys.ts` (constant) as *no tests needed*, and the other 6 as needing tests.
+- **Writing (`backend-unit-tests`, `frontend-unit-tests`):** it updated 5 test files and created `useClearCompletedMutation.test.tsx`. That covers the opt-in guard (422 without `?completed=true`), the repository count, the cache update, the success notice with singular and plural wording, the error alert, the busy state, and retry resetting the clear mutation.
+- **Verification (`run-tests-and-coverage`, then the workflow's re-run):** backend 53 and frontend 27 tests passed. Every new file is at 100% (`repository.ts`, `TodosHeader.tsx`, `useClearCompletedMutation.ts`). The frontend "before" coverage was missing because the feature had already broken `TodosPage.test` at runtime; the comment now says "suite failing" in that case.
+- **Result:** commit `bf35a1d` by `github-actions[bot]` on the PR branch, plus one sticky comment with the decision, per-file table, tests, coverage and skills.
+
+### 3. PR mode, nothing to test → [PR #2's own run](https://github.com/deminiro/taskly-app-node/actions/runs/45858439443)
+
+PR #2 changes only test files. The deterministic pre-filter found no testable source, so the model was never called (24 s). The comment says `skipped — No testable source changes`.
+
+Merge order: PR #2 first, then update PR #1 from `main`. The new push re-runs the agent, which reconciles both sets of tests. For example, `TodosPage.interactions.test.tsx` from PR #2 must also mock the new clear-completed hook.
 
 ## Assumptions
 
@@ -60,6 +84,7 @@ Before the agent, coverage was **backend 33.0% lines / 33.3% branches** and **fr
 
 - **Fork PRs are skipped.** `pull_request` from forks has no secrets, and using `pull_request_target` would mean running untrusted code next to secrets.
 - **The bot commit doesn't trigger CI again.** Pushes made with `GITHUB_TOKEN` don't start workflows. The `verify` job already ran the full typecheck and coverage on exactly that tree, but required-status rules see the previous commit.
+- Bot-pushed commits can create an approval-gated `pull_request` run on some repos; the workflow skips runs whose actor is `github-actions[bot]`, so approving one is harmless.
 - LLM output is not deterministic. Two runs can produce different (both valid) tests, and quality depends on turn limits and the model.
 - Each run costs model tokens. Large PRs may hit the turn cap, and the report then shows partial work.
 - Coverage numbers measure lines executed, not whether the assertions are any good.
