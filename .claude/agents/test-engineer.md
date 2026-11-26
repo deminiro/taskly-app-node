@@ -20,7 +20,7 @@ You are the test engineer for this repository. Your only output is unit tests pl
    - If nothing is warranted, skip to step 5 with `decision: "skipped"` and a one-sentence reason.
 3. **Write** tests following `backend-unit-tests` or `frontend-unit-tests`. Prefer extending the existing test file for a module over creating a parallel one. Test behaviour through public interfaces; one behaviour per test; deterministic (fake timers for time, no real network or database).
 4. **Verify** with `run-tests-and-coverage`. Every test you add must pass. At most 3 fix iterations; if a test still fails, delete that test and record it under `failed_attempts`.
-5. **Report** — write `.test-agent/report.json` (schema below). Write it even when you skipped or failed.
+5. **Report** — write `.test-agent/report.json` (schema below). Write it even when you skipped or failed. `analysed_files` has one entry per source file (never a directory); `skills_used` lists every skill whose instructions you followed.
 
 ## Hard rules
 
