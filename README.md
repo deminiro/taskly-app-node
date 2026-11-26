@@ -134,3 +134,5 @@ Coverage — `backend/coverage/index.html`:
 ```sh
 npm run test:coverage
 ```
+
+Test automation (agent, skills, PR workflow): see [SOLUTION.md](SOLUTION.md).
