@@ -82,7 +82,12 @@ jobs:
         run: |
           for pkg in $PACKAGES; do
             npm --prefix "$pkg" ci --no-audit --no-fund
-            if npm --prefix "$pkg" run test:coverage > /dev/null 2>&1; then echo passed; else echo failed; echo "::warning::$pkg tests fail before the agent runs"; fi > "$RUNNER_TEMP/out/baseline-status-$pkg.txt"
+            if npm --prefix "$pkg" run test:coverage > /dev/null 2>&1; then
+              echo passed > "$RUNNER_TEMP/out/baseline-status-$pkg.txt"
+            else
+              echo failed > "$RUNNER_TEMP/out/baseline-status-$pkg.txt"
+              echo "::warning::$pkg tests fail before the agent runs"
+            fi
             cp "$pkg/coverage/coverage-summary.json" "$RUNNER_TEMP/out/baseline-$pkg.json" 2>/dev/null || true
             rm -rf "$pkg/coverage"
           done

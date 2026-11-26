@@ -71,7 +71,11 @@ The PR adds "Clear completed tasks": `DELETE /api/todos?completed=true`, `todosA
 
 PR #2 changes only test files. The deterministic pre-filter found no testable source, so the model was never called (24 s). The comment says `skipped — No testable source changes`.
 
-Merge order: PR #2 first, then update PR #1 from `main`. The new push re-runs the agent, which reconciles both sets of tests. For example, `TodosPage.interactions.test.tsx` from PR #2 must also mock the new clear-completed hook.
+### 4. PR mode, updating tests after a merge → [PR #1 re-run](https://github.com/deminiro/taskly-app-node/actions/runs/45859271620)
+
+PR #2 was merged into `main`, then `main` was merged into PR #1. The two test-file conflicts (`router.test.ts`, `api/todos.test.ts`) were resolved to `main`'s version, deliberately dropping PR #1's clear-completed tests there. That left the branch broken: the backend didn't typecheck (the fake store had no `deleteCompleted`), and PR #2's `TodosPage.interactions.test.tsx` didn't mock the new hook.
+
+On that push the agent decided `tests_updated`. It skipped files already tested in the diff (repository, header, hook) and explained why in the comment. It re-added the route tests (200 and 422) and the `clearCompleted` client test, added the missing hook mock to `TodosPage.interactions.test.tsx`, and made one async assertion in the hook test wait for state. Verified: **backend 81 passed, 100% lines / 98% branches; frontend 87 passed, 97.6% lines / 98.6% branches**. Every changed file is at 100%, except `TodosPage.tsx` at 97%. Commit `e6db0fc`.
 
 ## Assumptions
 
