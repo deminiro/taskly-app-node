@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatDate, isOverdue, selectTodos, validateTodo } from './todos'
+import { formatDate, isOverdue, pluralize, selectTodos, validateTodo } from './todos'
 import type { Todo } from '../types'
 
 const base: Todo = {
@@ -82,4 +82,13 @@ describe('isOverdue and formatDate', () => {
     expect(isOverdue(base)).toBe(false)
   })
   it('formats dates in en-GB', () => expect(formatDate('2026-10-05')).toBe('5 Oct 2026'))
+})
+
+describe('pluralize', () => {
+  it('uses the singular noun only for a count of one', () => {
+    expect(pluralize(1, 'completed task')).toBe('1 completed task')
+  })
+  it.each([0, 2, 10])('uses the plural noun for a count of %i', (count) => {
+    expect(pluralize(count, 'completed task')).toBe(`${count} completed tasks`)
+  })
 })
