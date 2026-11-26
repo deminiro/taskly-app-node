@@ -7,4 +7,4 @@
 ## Testing
 Unit tests never need a database or network. For writing or updating tests use the `test-engineer`
 agent (`.claude/agents/test-engineer.md`) and its skills in `.claude/skills/`. The same agent runs on
-every pull request via `.github/workflows/pr-test-agent.yml` — see `SOLUTION.md`.
+every pull request via `.github/workflows/test-agent.yml` — see `SOLUTION.md`.
